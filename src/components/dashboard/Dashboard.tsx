@@ -8,6 +8,7 @@ import {
 } from "@/data/simulationMath";
 import { EventoDisruptivo, MetricasRecuperacion, PuntoTiempo } from "@/types";
 import ResiliencyChart from "./ResiliencyChart";
+import ResilienceBarChart from "./ResilienceBarChart";
 import KPIGrid from "./KPIGrid";
 import EventSelector from "../controls/EventSelector";
 import SpeedSlider from "../controls/SpeedSlider";
@@ -22,11 +23,9 @@ import {
   Zap,
   Building2,
   Waves,
-  ChevronRight,
   Info,
 } from "lucide-react";
 
-// Mapa de iconos por evento
 const EVENT_ICONS: Record<string, React.ReactNode> = {
   "huracan-cat4": <Wind size={22} />,
   ciberataque: <Cpu size={22} />,
@@ -194,7 +193,6 @@ export default function Dashboard() {
               )}
             </button>
 
-            {/* Logomark */}
             <div
               style={{
                 width: 36,
@@ -423,8 +421,7 @@ export default function Dashboard() {
                       color: "#059669",
                     }}
                   >
-                    <BarChart2 size={11} />
-                    Grav. {ev.gravedad}%
+                    <BarChart2 size={11} /> Grav. {ev.gravedad}%
                   </div>
                   <div
                     style={{
@@ -435,13 +432,11 @@ export default function Dashboard() {
                       color: "#059669",
                     }}
                   >
-                    <Clock size={11} />
-                    Base {ev.tiempoRecuperacionBase}d
+                    <Clock size={11} /> Base {ev.tiempoRecuperacionBase}d
                   </div>
                 </div>
               </div>
             </div>
-
             <p
               style={{
                 fontSize: 12,
@@ -452,8 +447,6 @@ export default function Dashboard() {
             >
               {ev.descripcion}
             </p>
-
-            {/* Barra gravedad */}
             <div
               style={{
                 height: 6,
@@ -494,8 +487,7 @@ export default function Dashboard() {
                 gap: 6,
               }}
             >
-              <Info size={11} color="#a09994" />
-              Referencias
+              <Info size={11} color="#a09994" /> Referencias
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {[
@@ -585,12 +577,23 @@ export default function Dashboard() {
           {/* KPIs */}
           {metricas && <KPIGrid metricas={metricas} eventoActual={ev.nombre} />}
 
-          {/* Gráfico */}
+          {/* Gráfico de curvas */}
           <div
             className="animate-fade-up"
-            style={{ animationDelay: "0.15s", opacity: 0 }}
+            style={{ animationDelay: "0.1s", opacity: 0 }}
           >
             <ResiliencyChart data={puntos} />
+          </div>
+
+          {/* Gráfico de barras comparativo */}
+          <div
+            className="animate-fade-up"
+            style={{ animationDelay: "0.18s", opacity: 0 }}
+          >
+            <ResilienceBarChart
+              velocidad={velocidadRespuesta}
+              eventoActivoId={ev.id}
+            />
           </div>
 
           {/* Footer */}
@@ -610,7 +613,7 @@ export default function Dashboard() {
         </main>
       </div>
 
-      {/* Mobile sidebar overlay */}
+      {/* ── MOBILE SIDEBAR OVERLAY ───────────────────────────────────────── */}
       {sidebarOpen && (
         <div
           style={{ position: "fixed", inset: 0, zIndex: 40, display: "flex" }}
@@ -655,19 +658,83 @@ export default function Dashboard() {
             >
               <X size={14} color="#6b6560" />
             </button>
-            <EventSelector
-              eventos={EVENTOS}
-              seleccionado={eventoSeleccionado}
-              onChange={(e) => {
-                setEventoSeleccionado(e);
-                setSidebarOpen(false);
-              }}
-            />
+
+            <div className="card" style={{ padding: 18 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "#a09994",
+                  textTransform: "uppercase",
+                  letterSpacing: ".08em",
+                  marginBottom: 12,
+                }}
+              >
+                Evento Disruptivo
+              </div>
+              <EventSelector
+                eventos={EVENTOS}
+                seleccionado={eventoSeleccionado}
+                onChange={(e) => {
+                  setEventoSeleccionado(e);
+                  setSidebarOpen(false);
+                }}
+              />
+            </div>
+
             <div className="card" style={{ padding: 20 }}>
               <SpeedSlider
                 velocidad={velocidadRespuesta}
                 onChange={setVelocidadRespuesta}
               />
+            </div>
+
+            {/* Info evento en drawer */}
+            <div
+              style={{
+                background: "#ecfdf5",
+                border: "1px solid #a7f3d0",
+                borderRadius: 16,
+                padding: 16,
+              }}
+            >
+              <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    background: "#d1fae5",
+                    color: "#059669",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  {evIcon}
+                </div>
+                <div>
+                  <div
+                    style={{ fontSize: 13, fontWeight: 700, color: "#064e3b" }}
+                  >
+                    {ev.nombre}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#059669", marginTop: 3 }}>
+                    Gravedad {ev.gravedad}% · Base {ev.tiempoRecuperacionBase}d
+                  </div>
+                </div>
+              </div>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "#065f46",
+                  lineHeight: 1.6,
+                  margin: 0,
+                }}
+              >
+                {ev.descripcion}
+              </p>
             </div>
           </div>
         </div>
@@ -675,12 +742,12 @@ export default function Dashboard() {
 
       <style>{`
         @media (max-width: 1024px) {
-          #sidebar        { display: none !important; }
-          #header-event   { display: none !important; }
-          #header-clock   { display: none !important; }
+          #sidebar         { display: none !important; }
+          #header-event    { display: none !important; }
+          #header-clock    { display: none !important; }
           #mobile-menu-btn { display: flex !important; }
         }
-        @keyframes spinAnim { to { transform: rotate(360deg); } }
+        @keyframes spinAnim    { to { transform: rotate(360deg); } }
         @keyframes progressFill { from { width: 0%; } }
       `}</style>
     </div>

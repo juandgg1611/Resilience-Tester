@@ -2,8 +2,9 @@
 
 import { PuntoTiempo } from "@/types";
 import {
-  AreaChart,
+  ComposedChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -11,23 +12,34 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
+import { useEffect, useState, useMemo } from "react";
 
 interface Props {
   data: PuntoTiempo[];
 }
 
+interface PuntoGrafico extends PuntoTiempo {
+  rigidoBase: number; // Para el área roja (base)
+  ganancia: number; // Para el área ámbar (entre líneas)
+}
+
 interface TooltipProps {
   active?: boolean;
-  payload?: Array<{ value: number; name: string; color: string }>;
+  payload?: Array<{
+    value: number;
+    name: string;
+    dataKey: string;
+    color: string;
+  }>;
   label?: number;
 }
 
 function CustomTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length) return null;
 
-  const res = payload.find((p) => p.name === "Resiliente");
-  const rig = payload.find((p) => p.name === "Rígido");
-  const diff = res && rig ? res.value - rig.value : null;
+  const rigido = payload.find((p) => p.dataKey === "rigido");
+  const resiliente = payload.find((p) => p.dataKey === "resiliente");
+  const ganancia = resiliente && rigido ? resiliente.value - rigido.value : 0;
 
   return (
     <div
@@ -35,111 +47,132 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
         background: "#fff",
         border: "1px solid #e5e2dc",
         borderRadius: 12,
-        padding: "12px 16px",
+        padding: "12px 14px",
         boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
-        minWidth: 180,
         fontFamily: "'Plus Jakarta Sans', sans-serif",
+        minWidth: 162,
       }}
     >
       <div
         style={{
-          fontSize: 11,
+          fontSize: 10,
           color: "#a09994",
-          fontFamily: "'DM Mono', monospace",
-          marginBottom: 10,
+          fontFamily: "'DM Mono',monospace",
+          marginBottom: 8,
           letterSpacing: ".05em",
         }}
       >
         DÍA {label}
       </div>
-      {res && (
+
+      {/* Sistema Resiliente - Línea Verde */}
+      {resiliente && (
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 6,
+            gap: 12,
+            marginBottom: 5,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <div
               style={{
-                width: 10,
-                height: 10,
+                width: 9,
+                height: 9,
                 borderRadius: 2,
                 background: "#059669",
+                flexShrink: 0,
               }}
             />
             <span style={{ fontSize: 12, color: "#6b6560" }}>Resiliente</span>
           </div>
           <span
             style={{
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: 700,
               color: "#059669",
-              fontFamily: "'DM Mono', monospace",
+              fontFamily: "'DM Mono',monospace",
             }}
           >
-            {res.value}%
+            {resiliente.value.toFixed(1)}%
           </span>
         </div>
       )}
-      {rig && (
+
+      {/* Sistema Rígido - Línea Roja */}
+      {rigido && (
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 6,
+            gap: 12,
+            marginBottom: 5,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <div
               style={{
-                width: 10,
-                height: 10,
+                width: 9,
+                height: 9,
                 borderRadius: 2,
                 background: "#dc2626",
+                flexShrink: 0,
               }}
             />
             <span style={{ fontSize: 12, color: "#6b6560" }}>Rígido</span>
           </div>
           <span
             style={{
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: 700,
               color: "#dc2626",
-              fontFamily: "'DM Mono', monospace",
+              fontFamily: "'DM Mono',monospace",
             }}
           >
-            {rig.value}%
+            {rigido.value.toFixed(1)}%
           </span>
         </div>
       )}
-      {diff !== null && diff > 0 && (
+
+      {/* Resiliencia Ganada - Diferencia */}
+      {ganancia > 0 && (
         <div
           style={{
-            marginTop: 10,
-            paddingTop: 10,
+            marginTop: 8,
+            paddingTop: 8,
             borderTop: "1px solid #f0ede8",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
           }}
         >
-          <span style={{ fontSize: 11, color: "#a09994" }}>Ventaja</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <div
+              style={{
+                width: 9,
+                height: 9,
+                borderRadius: 2,
+                background: "#d97706",
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ fontSize: 10, color: "#a09994" }}>Ganancia</span>
+          </div>
           <span
             style={{
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 700,
               color: "#d97706",
               background: "#fef3c7",
-              padding: "2px 8px",
+              padding: "2px 7px",
               borderRadius: 6,
-              fontFamily: "'DM Mono', monospace",
+              fontFamily: "'DM Mono',monospace",
             }}
           >
-            +{diff.toFixed(1)}%
+            +{ganancia.toFixed(1)}%
           </span>
         </div>
       )}
@@ -147,15 +180,72 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
   );
 }
 
+function useViewportWidth() {
+  const [width, setWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1280,
+  );
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+}
+
+function calcularTicksDias(
+  min: number,
+  max: number,
+  maxTicks: number,
+): number[] {
+  const span = max - min;
+  const intervals = [1, 2, 5, 7, 10, 14, 15, 30];
+  const interval =
+    intervals.find((iv) => Math.floor(span / iv) + 1 <= maxTicks) ?? 5;
+  const ticks: number[] = [];
+  for (let v = min; v <= max; v += interval) ticks.push(v);
+  if (ticks[ticks.length - 1] !== max) ticks.push(max);
+  return ticks;
+}
+
 export default function ResiliencyChart({ data }: Props) {
+  const vw = useViewportWidth();
+  const isMobile = vw < 480;
+  const isTablet = vw >= 480 && vw < 1024;
+
+  // Enriquecer datos para las áreas apiladas
+  const datosEnriquecidos: PuntoGrafico[] = useMemo(() => {
+    return data.map((d) => ({
+      ...d,
+      rigidoBase: d.rigido, // Base para el área roja
+      ganancia: Math.max(0, d.resiliente - d.rigido), // Diferencia para área ámbar
+    }));
+  }, [data]);
+
+  // Punto crítico del sistema resiliente
   const puntoMinimo = Math.min(...data.map((d) => d.resiliente));
   const diaMinimo = data.find((d) => d.resiliente === puntoMinimo)?.dia ?? 0;
 
-  const step = Math.max(1, Math.floor(data.length / 90));
-  const sampled = data.filter((_, i) => i % step === 0);
+  const maxTicksX = isMobile ? 5 : isTablet ? 7 : 9;
+  const minDia = data[0]?.dia ?? 0;
+  const maxDia = data[data.length - 1]?.dia ?? 30;
+  const ticksX = useMemo(
+    () => calcularTicksDias(minDia, maxDia, maxTicksX),
+    [minDia, maxDia, maxTicksX],
+  );
+
+  const margin = isMobile
+    ? { top: 8, right: 6, bottom: 24, left: 0 }
+    : isTablet
+      ? { top: 10, right: 10, bottom: 32, left: 0 }
+      : { top: 10, right: 14, bottom: 38, left: 0 };
 
   return (
-    <div className="card" style={{ padding: "24px 28px" }}>
+    <div
+      className="card"
+      style={{
+        padding: isMobile ? "16px 14px" : isTablet ? "20px 20px" : "24px 28px",
+      }}
+    >
       {/* Header */}
       <div
         style={{
@@ -163,26 +253,26 @@ export default function ResiliencyChart({ data }: Props) {
           flexWrap: "wrap",
           alignItems: "flex-start",
           justifyContent: "space-between",
-          gap: 16,
-          marginBottom: 28,
+          gap: 12,
+          marginBottom: isMobile ? 16 : 24,
         }}
       >
         <div>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: 700,
               color: "#a09994",
               textTransform: "uppercase",
-              letterSpacing: ".06em",
-              marginBottom: 6,
+              letterSpacing: ".07em",
+              marginBottom: 5,
             }}
           >
             Curvas de Operatividad
           </div>
           <h2
             style={{
-              fontSize: 22,
+              fontSize: isMobile ? 16 : isTablet ? 18 : 22,
               fontWeight: 800,
               color: "#1a1714",
               margin: 0,
@@ -191,9 +281,11 @@ export default function ResiliencyChart({ data }: Props) {
           >
             Triángulo de Resiliencia
           </h2>
-          <p style={{ fontSize: 13, color: "#a09994", marginTop: 4 }}>
-            Evolución de la capacidad operativa · Sistema Rígido vs Resiliente
-          </p>
+          {!isMobile && (
+            <p style={{ fontSize: 12, color: "#a09994", marginTop: 3 }}>
+              Sistema Rígido vs Resiliente · {data.length} días simulados
+            </p>
+          )}
         </div>
 
         {/* Leyenda */}
@@ -205,109 +297,125 @@ export default function ResiliencyChart({ data }: Props) {
             alignItems: "center",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <svg width="28" height="12">
+          {/* Sistema Resiliente - Verde Sólido */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="24" height="10">
               <line
                 x1="0"
-                y1="6"
-                x2="28"
-                y2="6"
+                y1="5"
+                x2="24"
+                y2="5"
                 stroke="#059669"
-                strokeWidth="2.5"
+                strokeWidth={3}
                 strokeLinecap="round"
               />
             </svg>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#059669" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#059669" }}>
               Sistema Resiliente
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <svg width="28" height="12">
+
+          {/* Sistema Rígido - Rojo Discontinuo */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="24" height="10">
               <line
                 x1="0"
-                y1="6"
-                x2="28"
-                y2="6"
+                y1="5"
+                x2="24"
+                y2="5"
                 stroke="#dc2626"
-                strokeWidth="2"
+                strokeWidth={2.5}
                 strokeDasharray="5,3"
                 strokeLinecap="round"
               />
             </svg>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#dc2626" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#dc2626" }}>
               Sistema Rígido
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+
+          {/* Resiliencia Ganada - Área Ámbar */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div
               style={{
-                width: 20,
-                height: 12,
+                width: 24,
+                height: 10,
                 borderRadius: 3,
-                background: "rgba(217,119,6,0.2)",
-                border: "1px solid rgba(217,119,6,0.35)",
+                background: "rgba(217,119,6,0.35)",
+                border: "1px solid #d97706",
               }}
             />
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#d97706" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#d97706" }}>
               Resiliencia Ganada
             </span>
           </div>
         </div>
       </div>
 
-      {/* Chart */}
-      <div style={{ height: 380 }}>
+      {/* Gráfico */}
+      <div
+        className="chart-wrap"
+        style={{ height: isMobile ? 220 : isTablet ? 300 : 360 }}
+      >
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart
-            data={sampled}
-            margin={{ top: 10, right: 10, bottom: 32, left: 0 }}
-          >
+          <ComposedChart data={datosEnriquecidos} margin={margin}>
             <defs>
-              <linearGradient id="gradRes" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#059669" stopOpacity={0.15} />
-                <stop offset="100%" stopColor="#059669" stopOpacity={0.02} />
+              {/* Gradiente rojo para el área rígida */}
+              <linearGradient id="gradRigido" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#dc2626" stopOpacity={0.18} />
+                <stop offset="100%" stopColor="#dc2626" stopOpacity={0.04} />
               </linearGradient>
-              <linearGradient id="gradRig" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#dc2626" stopOpacity={0.1} />
-                <stop offset="100%" stopColor="#dc2626" stopOpacity={0.01} />
-              </linearGradient>
-              {/* Área dorada entre curvas */}
-              <linearGradient id="gradGain" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#d97706" stopOpacity={0.22} />
-                <stop offset="100%" stopColor="#d97706" stopOpacity={0.04} />
+
+              {/* Gradiente ámbar para el área entre curvas */}
+              <linearGradient id="gradGanancia" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#d97706" stopOpacity={0.45} />
+                <stop offset="100%" stopColor="#d97706" stopOpacity={0.15} />
               </linearGradient>
             </defs>
 
-            <CartesianGrid
-              stroke="#ece9e4"
-              strokeDasharray="0"
-              vertical={false}
-            />
+            <CartesianGrid stroke="#ece9e4" vertical={false} />
 
             <XAxis
               dataKey="dia"
-              tick={{ fill: "#a09994", fontSize: 11, fontFamily: "DM Mono" }}
-              tickLine={false}
-              axisLine={{ stroke: "#e5e2dc" }}
-              tickFormatter={(v) => `Día ${v}`}
-              interval="preserveStartEnd"
-              label={{
-                value: "Días desde el impacto",
-                position: "insideBottom",
-                offset: -16,
+              type="number"
+              scale="linear"
+              domain={[minDia, maxDia]}
+              ticks={ticksX}
+              tickFormatter={(v: number) => (isMobile ? `D${v}` : `Día ${v}`)}
+              tick={{
                 fill: "#a09994",
-                fontSize: 11,
+                fontSize: isMobile ? 9 : 10,
                 fontFamily: "DM Mono",
               }}
+              tickLine={false}
+              axisLine={{ stroke: "#e5e2dc" }}
+              interval={0}
+              label={
+                !isMobile
+                  ? {
+                      value: "Días desde el impacto",
+                      position: "insideBottom",
+                      offset: -20,
+                      fill: "#a09994",
+                      fontSize: 10,
+                      fontFamily: "DM Mono",
+                    }
+                  : undefined
+              }
             />
 
             <YAxis
               domain={[0, 100]}
-              tick={{ fill: "#a09994", fontSize: 11, fontFamily: "DM Mono" }}
+              ticks={[0, 25, 50, 75, 100]}
+              tick={{
+                fill: "#a09994",
+                fontSize: isMobile ? 9 : 10,
+                fontFamily: "DM Mono",
+              }}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v) => `${v}%`}
-              width={46}
+              tickFormatter={(v: number) => `${v}%`}
+              width={isMobile ? 36 : 44}
             />
 
             <Tooltip
@@ -315,22 +423,21 @@ export default function ResiliencyChart({ data }: Props) {
               cursor={{ stroke: "#e5e2dc", strokeWidth: 1.5 }}
             />
 
-            {/* Línea de punto crítico */}
+            {/* Línea del punto crítico */}
             <ReferenceLine
               x={diaMinimo}
               stroke="#d97706"
               strokeDasharray="5 4"
               strokeWidth={1.5}
               label={{
-                value: `Mínimo D${diaMinimo}`,
+                value: `Día ${diaMinimo}`,
                 fill: "#d97706",
-                fontSize: 11,
+                fontSize: isMobile ? 9 : 10,
                 fontFamily: "DM Mono",
-                position: "top",
+                position: "insideTopRight",
               }}
             />
 
-            {/* Línea 100% */}
             <ReferenceLine
               y={100}
               stroke="#e5e2dc"
@@ -338,38 +445,46 @@ export default function ResiliencyChart({ data }: Props) {
               label={{
                 value: "100%",
                 fill: "#ccc9c4",
-                fontSize: 10,
+                fontSize: 9,
                 fontFamily: "DM Mono",
                 position: "right",
               }}
             />
 
-            {/* Área rígido */}
+            {/* 
+              ÁREA ROJA - Sistema Rígido (base)
+              Esta área va desde 0 hasta rigido
+            */}
             <Area
               type="monotone"
-              dataKey="rigido"
-              name="Rígido"
-              stroke="#dc2626"
-              strokeWidth={2}
-              strokeDasharray="7 3"
-              fill="url(#gradRig)"
-              dot={false}
-              activeDot={{
-                r: 5,
-                fill: "#dc2626",
-                stroke: "#fff",
-                strokeWidth: 2,
-              }}
+              dataKey="rigidoBase"
+              stackId="1"
+              stroke="none"
+              fill="url(#gradRigido)"
             />
 
-            {/* Área resiliente (encima — crea el triángulo dorado visualmente) */}
+            {/* 
+              ÁREA AMBAR - Resiliencia Ganada (apilada SOBRE la roja)
+              Esta área va desde rigido hasta resiliente
+              Al usar el mismo stackId="1", se apila exactamente sobre la roja
+            */}
             <Area
               type="monotone"
+              dataKey="ganancia"
+              stackId="1"
+              stroke="none"
+              fill="url(#gradGanancia)"
+            />
+
+            {/* 
+              LÍNEA VERDE - Sistema Resiliente 
+              (se dibuja ENCIMA de las áreas)
+            */}
+            <Line
+              type="monotone"
               dataKey="resiliente"
-              name="Resiliente"
               stroke="#059669"
-              strokeWidth={2.5}
-              fill="url(#gradRes)"
+              strokeWidth={3}
               dot={false}
               activeDot={{
                 r: 6,
@@ -377,38 +492,74 @@ export default function ResiliencyChart({ data }: Props) {
                 stroke: "#fff",
                 strokeWidth: 2,
               }}
+              name="Sistema Resiliente"
             />
-          </AreaChart>
+
+            {/* 
+              LÍNEA ROJA - Sistema Rígido 
+              (discontinua para diferenciarla)
+            */}
+            <Line
+              type="monotone"
+              dataKey="rigido"
+              stroke="#dc2626"
+              strokeWidth={2.5}
+              strokeDasharray="7 4"
+              dot={false}
+              activeDot={{
+                r: 6,
+                fill: "#dc2626",
+                stroke: "#fff",
+                strokeWidth: 2,
+              }}
+              name="Sistema Rígido"
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Footer con nota */}
-      <div
-        style={{
-          marginTop: 20,
-          paddingTop: 16,
-          borderTop: "1px solid #f0ede8",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-        }}
-      >
+      {/* Footer explicativo */}
+      {!isMobile && (
         <div
           style={{
-            width: 20,
-            height: 12,
-            borderRadius: 3,
-            background: "rgba(217,119,6,0.2)",
-            flexShrink: 0,
+            marginTop: 16,
+            paddingTop: 14,
+            borderTop: "1px solid #f0ede8",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
           }}
-        />
-        <p style={{ fontSize: 12, color: "#a09994", margin: 0 }}>
-          El área entre ambas curvas representa la{" "}
-          <strong style={{ color: "#d97706" }}>resiliencia ganada</strong>: el
-          daño evitado gracias a la capacidad de adaptación y recuperación del
-          sistema.
-        </p>
-      </div>
+        >
+          <div
+            style={{
+              width: 16,
+              height: 9,
+              borderRadius: 3,
+              background: "rgba(217,119,6,0.35)",
+              border: "1px solid #d97706",
+              flexShrink: 0,
+              marginTop: 2,
+            }}
+          />
+          <p
+            style={{
+              fontSize: 11,
+              color: "#a09994",
+              margin: 0,
+              lineHeight: 1.6,
+            }}
+          >
+            <strong style={{ color: "#059669" }}>Línea verde:</strong> Sistema
+            Resiliente ·{" "}
+            <strong style={{ color: "#dc2626" }}>
+              Línea roja discontinua:
+            </strong>{" "}
+            Sistema Rígido ·{" "}
+            <strong style={{ color: "#d97706" }}>Área ámbar:</strong>{" "}
+            Resiliencia Ganada (diferencia entre curvas)
+          </p>
+        </div>
+      )}
     </div>
   );
 }
