@@ -2,11 +2,11 @@
 
 import { EventoDisruptivo } from "@/types";
 import {
-  Wind,
-  Shield,
-  Truck,
-  Mountain,
-  Droplets,
+  Anchor,
+  Navigation,
+  Thermometer,
+  Flame,
+  Link,
   AlertTriangle,
   Check,
 } from "lucide-react";
@@ -18,26 +18,23 @@ interface Props {
 }
 
 const EVENT_ICONS: Record<string, React.ElementType> = {
-  "huracan-cat4": Wind,
-  ciberataque: Shield,
-  "falla-suministro": Truck,
-  terremoto: Mountain,
-  inundacion: Droplets,
+  "ruptura-quilla":    Anchor,
+  "dano-timon":        Navigation,
+  "motor-principal":   Thermometer,
+  "fuego-combustible": Flame,
+  "ruptura-guaya":     Link,
 };
 
-const SEVERITY_CONFIG: Record<
-  number,
-  { label: string; color: string; bg: string }
-> = {
-  80: { label: "Crítico", color: "#dc2626", bg: "#fee2e2" },
-  60: { label: "Alto", color: "#d97706", bg: "#fef3c7" },
-  0: { label: "Moderado", color: "#2563eb", bg: "#dbeafe" },
-};
-
-function getSeverityConfig(gravedad: number) {
-  if (gravedad >= 80) return SEVERITY_CONFIG[80];
-  if (gravedad >= 60) return SEVERITY_CONFIG[60];
-  return SEVERITY_CONFIG[0];
+// ── CAMBIO: usa nivelRiesgo (string) en vez de gravedad (número) ──
+function getSeverityConfig(nivelRiesgo: string): { label: string; color: string; bg: string } {
+  switch (nivelRiesgo) {
+    case "Crítico":
+      return { label: "Crítico",  color: "#dc2626", bg: "#fee2e2" };
+    case "Alto":
+      return { label: "Alto",     color: "#d97706", bg: "#fef3c7" };
+    default:
+      return { label: "Moderado", color: "#2563eb", bg: "#dbeafe" };
+  }
 }
 
 export default function EventSelector({
@@ -49,7 +46,7 @@ export default function EventSelector({
     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
       {eventos.map((ev, i) => {
         const isActive = ev.id === seleccionado.id;
-        const severity = getSeverityConfig(ev.gravedad);
+        const severity = getSeverityConfig(ev.nivelRiesgo);
         const IconComponent = EVENT_ICONS[ev.id] || AlertTriangle;
 
         return (
@@ -147,6 +144,7 @@ export default function EventSelector({
                 >
                   {severity.label}
                 </span>
+                {/* ── CAMBIO: muestra probabilidad en vez de % gravedad ── */}
                 <span
                   style={{
                     fontSize: "11px",
@@ -154,7 +152,7 @@ export default function EventSelector({
                     fontFamily: "'DM Mono', monospace",
                   }}
                 >
-                  {ev.gravedad}% gravedad
+                  {ev.labelProbabilidad}
                 </span>
               </div>
             </div>
@@ -182,14 +180,8 @@ export default function EventSelector({
 
       <style>{`
         @keyframes fadeUp {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>

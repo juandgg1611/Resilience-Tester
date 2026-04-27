@@ -13,16 +13,18 @@ import {
   Zap,
   ArrowUpRight,
   RotateCcw,
+  Activity,
+  Timer,
 } from "lucide-react";
 
 interface Props {
   metricas: MetricasRecuperacion;
   eventoActual: string;
+  nivelRiesgo: string;
 }
 
 function formatTiempo(dias: number): string {
   if (dias <= 0) return "< 1d";
-  if (dias >= 30) return "+30d";
   return `${dias}d`;
 }
 
@@ -122,43 +124,75 @@ function KPICard({
   );
 }
 
-export default function KPIGrid({ metricas, eventoActual }: Props) {
-  const recOk = metricas.tiempoRecuperacionResiliente < 30;
+function getNivelRiesgoConfig(nivelRiesgo: string) {
+  switch (nivelRiesgo) {
+    case "Crítico":
+      return {
+        Icon: XCircle,
+        text: "Nivel de Riesgo: Crítico",
+        sub: "Impacto catastrófico. Requiere respuesta inmediata y protocolos de emergencia.",
+        color: "#dc2626",
+        bg: "#fee2e2",
+      };
+    case "Alto":
+      return {
+        Icon: AlertCircle,
+        text: "Nivel de Riesgo: Alto",
+        sub: "Consecuencias críticas. Se requiere intervención prioritaria del equipo de respuesta.",
+        color: "#d97706",
+        bg: "#fef3c7",
+      };
+    default:
+      return {
+        Icon: CheckCircle2,
+        text: "Nivel de Riesgo: Moderado",
+        sub: "Consecuencias moderadas. Recuperación operativa en plazo razonable.",
+        color: "#059669",
+        bg: "#d1fae5",
+      };
+  }
+}
+
+export default function KPIGrid({ metricas, eventoActual, nivelRiesgo }: Props) {
+  const recOk = metricas.tiempoRecuperacionResiliente < metricas.tiempoRecuperacionRigido;
+
+  const timeLabel =
+    metricas.tiempoRecuperacionResiliente <= 5
+      ? { Icon: Zap,         text: `Recuperación rápida — ${metricas.tiempoRecuperacionResiliente} días`,  color: "#059669" }
+      : metricas.tiempoRecuperacionResiliente <= 14
+      ? { Icon: ArrowUpRight, text: `Recuperación media — ${metricas.tiempoRecuperacionResiliente} días`,   color: "#d97706" }
+      : metricas.tiempoRecuperacionResiliente <= 28
+      ? { Icon: RotateCcw,    text: `Recuperación lenta — ${metricas.tiempoRecuperacionResiliente} días`,   color: "#dc2626" }
+      : { Icon: AlertTriangle, text: "Recuperación muy lenta — más de 28 días",                             color: "#dc2626" };
 
   const kpis: KPICardProps[] = [
     {
       label: "Tiempo Recuperación",
       value: formatTiempo(metricas.tiempoRecuperacionResiliente),
-      sub: recOk
-        ? `Día ${metricas.tiempoRecuperacionResiliente} — 95% operatividad`
-        : "Sin recuperación en 30 días",
+      sub: `Día ${metricas.tiempoRecuperacionResiliente} — sistema resiliente`,
       color: recOk ? "#059669" : "#dc2626",
       bg: recOk ? "#d1fae5" : "#fee2e2",
       icon: <Clock size={17} />,
-      progress: recOk
-        ? Math.round((1 - metricas.tiempoRecuperacionResiliente / 30) * 100)
-        : 5,
+      progress: Math.round(
+        (1 - metricas.tiempoRecuperacionResiliente / metricas.tiempoRecuperacionRigido) * 100
+      ),
       delay: 0,
     },
     {
-      label: "Pérdida Evitada",
-      value: `${metricas.resilienciaGanada.toFixed(0)}%`,
-      sub: "del daño vs sistema rígido",
+      // ── CAMBIO: "Pérdida Evitada" → "Mejora en la Capacidad de Absorción" ──
+      label: "Mejora Capacidad de Absorción",
+      value: `${metricas.mejoraAbsorcion.toFixed(2)}%`,
+      sub: "vs sistema rígido (sin resiliencia)",
       color: "#d97706",
       bg: "#fef3c7",
       icon: <TrendingUp size={17} />,
-      progress:
-        metricas.perdidaTotalRigido > 0
-          ? Math.round(
-              (metricas.resilienciaGanada / metricas.perdidaTotalRigido) * 100,
-            )
-          : 0,
+      progress: Math.min(100, metricas.mejoraAbsorcion),
       delay: 0.07,
     },
     {
       label: "Punto Crítico",
       value: `${metricas.puntoMinimo}%`,
-      sub: "Operatividad mínima",
+      sub: "Operatividad mínima — sistema resiliente",
       color: "#dc2626",
       bg: "#fee2e2",
       icon: <AlertTriangle size={17} />,
@@ -167,8 +201,8 @@ export default function KPIGrid({ metricas, eventoActual }: Props) {
     },
     {
       label: "Efectividad",
-      value: `${metricas.efectividad.toFixed(1)}%`,
-      sub: "Daño evitado total",
+      value: `${metricas.efectividad.toFixed(2)}%`,
+      sub: "Efectividad del sistema resiliente",
       color: "#2563eb",
       bg: "#dbeafe",
       icon: <Shield size={17} />,
@@ -177,55 +211,7 @@ export default function KPIGrid({ metricas, eventoActual }: Props) {
     },
   ];
 
-  const diag =
-    metricas.efectividad > 70
-      ? {
-          Icon: CheckCircle2,
-          text: "Alta resiliencia",
-          sub: "El sistema absorbe y se recupera con eficacia.",
-          color: "#059669",
-          bg: "#d1fae5",
-        }
-      : metricas.efectividad > 40
-        ? {
-            Icon: AlertCircle,
-            text: "Resiliencia moderada",
-            sub: "Recuperación con pérdidas operativas significativas.",
-            color: "#d97706",
-            bg: "#fef3c7",
-          }
-        : {
-            Icon: XCircle,
-            text: "Baja resiliencia",
-            sub: "Impacto severo. Requiere intervención urgente.",
-            color: "#dc2626",
-            bg: "#fee2e2",
-          };
-
-  const timeLabel =
-    metricas.tiempoRecuperacionResiliente < 7
-      ? {
-          Icon: Zap,
-          text: "Recuperación rápida — menos de 7 días",
-          color: "#059669",
-        }
-      : metricas.tiempoRecuperacionResiliente < 14
-        ? {
-            Icon: ArrowUpRight,
-            text: "Recuperación media — 7 a 14 días",
-            color: "#d97706",
-          }
-        : metricas.tiempoRecuperacionResiliente < 30
-          ? {
-              Icon: RotateCcw,
-              text: "Recuperación lenta — más de 14 días",
-              color: "#dc2626",
-            }
-          : {
-              Icon: AlertTriangle,
-              text: "Sin recuperación en 30 días",
-              color: "#dc2626",
-            };
+  const nivelConfig = getNivelRiesgoConfig(nivelRiesgo);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -238,7 +224,7 @@ export default function KPIGrid({ metricas, eventoActual }: Props) {
 
       {/* Secundario */}
       <div className="kpi-secondary">
-        {/* Comparativa */}
+        {/* Comparativa de Daño */}
         <div
           className="card card-pad animate-fade-up"
           style={{ animationDelay: "0.28s", opacity: 0 }}
@@ -276,7 +262,7 @@ export default function KPIGrid({ metricas, eventoActual }: Props) {
             {eventoActual}
           </div>
 
-          {/* Rígido */}
+          {/* Tiempo inactivo rígido */}
           <div style={{ marginBottom: 12 }}>
             <div
               style={{
@@ -300,7 +286,7 @@ export default function KPIGrid({ metricas, eventoActual }: Props) {
                   fontFamily: "'DM Mono',monospace",
                 }}
               >
-                {metricas.perdidaTotalRigido.toFixed(0)} u.
+                {metricas.tiempoInactivo.toFixed(2)} d.
               </span>
             </div>
             <div className="progress-track">
@@ -311,8 +297,8 @@ export default function KPIGrid({ metricas, eventoActual }: Props) {
             </div>
           </div>
 
-          {/* Resiliente */}
-          <div>
+          {/* Tiempo inactivo resiliente */}
+          <div style={{ marginBottom: 12 }}>
             <div
               style={{
                 display: "flex",
@@ -335,7 +321,7 @@ export default function KPIGrid({ metricas, eventoActual }: Props) {
                   fontFamily: "'DM Mono',monospace",
                 }}
               >
-                {metricas.perdidaTotalResiliente.toFixed(0)} u.
+                {metricas.tiempoInactivoResiliente.toFixed(2)} d.
               </span>
             </div>
             <div className="progress-track">
@@ -343,17 +329,39 @@ export default function KPIGrid({ metricas, eventoActual }: Props) {
                 className="progress-fill animate-progress"
                 style={{
                   width:
-                    metricas.perdidaTotalRigido > 0
-                      ? `${(metricas.perdidaTotalResiliente / metricas.perdidaTotalRigido) * 100}%`
+                    metricas.tiempoInactivo > 0
+                      ? `${(metricas.tiempoInactivoResiliente / metricas.tiempoInactivo) * 100}%`
                       : "0%",
                   background: "#6ee7b7",
                 }}
               />
             </div>
           </div>
+
+          {/* Diferencia */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "7px 10px",
+              borderRadius: 8,
+              background: "#f5f3ef",
+              fontSize: 11,
+              fontWeight: 600,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#6b6560" }}>
+              <Timer size={12} />
+              <span>Reducción de tiempo inactivo</span>
+            </div>
+            <span style={{ color: "#059669", fontFamily: "'DM Mono',monospace" }}>
+              −{metricas.comparativaDano.toFixed(2)} d.
+            </span>
+          </div>
         </div>
 
-        {/* Diagnóstico */}
+        {/* ── CAMBIO: "Diagnóstico" → "Nivel de Riesgo" ── */}
         <div
           className="card card-pad animate-fade-up"
           style={{ animationDelay: "0.32s", opacity: 0 }}
@@ -376,16 +384,16 @@ export default function KPIGrid({ metricas, eventoActual }: Props) {
                 letterSpacing: ".06em",
               }}
             >
-              Diagnóstico
+              Nivel de Riesgo
             </span>
           </div>
 
           <div
             className="diag-pill"
-            style={{ background: diag.bg, color: diag.color }}
+            style={{ background: nivelConfig.bg, color: nivelConfig.color }}
           >
-            <diag.Icon size={15} />
-            {diag.text}
+            <nivelConfig.Icon size={15} />
+            {nivelConfig.text}
           </div>
 
           <p
@@ -396,9 +404,10 @@ export default function KPIGrid({ metricas, eventoActual }: Props) {
               margin: "0 0 12px",
             }}
           >
-            {diag.sub}
+            {nivelConfig.sub}
           </p>
 
+          {/* Tiempo de recuperación */}
           <div
             style={{
               display: "flex",
@@ -414,6 +423,25 @@ export default function KPIGrid({ metricas, eventoActual }: Props) {
           >
             <timeLabel.Icon size={12} />
             {timeLabel.text}
+          </div>
+
+          {/* Punto crítico rígido */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 10px",
+              borderRadius: 8,
+              background: "#f5f3ef",
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#dc2626",
+              marginTop: 8,
+            }}
+          >
+            <Activity size={12} />
+            {`Punto crítico rígido: ${metricas.puntoCriticoRigido}% operatividad`}
           </div>
         </div>
       </div>

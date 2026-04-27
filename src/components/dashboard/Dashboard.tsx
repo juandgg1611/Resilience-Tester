@@ -11,32 +11,33 @@ import ResiliencyChart from "./ResiliencyChart";
 import ResilienceBarChart from "./ResilienceBarChart";
 import KPIGrid from "./KPIGrid";
 import EventSelector from "../controls/EventSelector";
-import SpeedSlider from "../controls/SpeedSlider";
+//import SpeedSlider from "../controls/SpeedSlider";
 import {
   Menu,
   X,
   Activity,
   Clock,
   BarChart2,
-  Wind,
-  Cpu,
+  Anchor,
+  Navigation,
+  Thermometer,
+  Flame,
+  Link,
   Zap,
-  Building2,
-  Waves,
   Info,
 } from "lucide-react";
 
 const EVENT_ICONS: Record<string, React.ReactNode> = {
-  "huracan-cat4": <Wind size={22} />,
-  ciberataque: <Cpu size={22} />,
-  "falla-suministro": <Zap size={22} />,
-  terremoto: <Building2 size={22} />,
-  inundacion: <Waves size={22} />,
+  "ruptura-quilla": <Anchor size={22} />,
+  "dano-timon": <Navigation size={22} />,
+  "motor-principal": <Thermometer size={22} />,
+  "fuego-combustible": <Flame size={22} />,
+  "ruptura-guaya": <Link size={22} />,
 };
 
-function getSeverityStyle(g: number) {
-  if (g >= 80) return { label: "Crítico", color: "#dc2626", bg: "#fee2e2" };
-  if (g >= 60) return { label: "Alto", color: "#d97706", bg: "#fef3c7" };
+function getSeverityStyle(nivelRiesgo: string) {
+  if (nivelRiesgo === "Crítico") return { label: "Crítico", color: "#dc2626", bg: "#fee2e2" };
+  if (nivelRiesgo === "Alto") return { label: "Alto", color: "#d97706", bg: "#fef3c7" };
   return { label: "Moderado", color: "#2563eb", bg: "#dbeafe" };
 }
 
@@ -135,14 +136,14 @@ export default function Dashboard() {
       velocidadRespuesta,
     );
     setPuntos(nuevosPuntos);
-    setMetricas(calcularMetricas(nuevosPuntos));
+    setMetricas(calcularMetricas(nuevosPuntos, eventoSeleccionado, velocidadRespuesta));
   }, [eventoSeleccionado, velocidadRespuesta]);
 
   if (puntos.length === 0) return <LoadingScreen />;
 
   const ev = eventoSeleccionado;
   const evIcon = EVENT_ICONS[ev.id] ?? <Zap size={22} />;
-  const sev = getSeverityStyle(ev.gravedad);
+  const sev = getSeverityStyle(ev.nivelRiesgo);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f3ef" }}>
@@ -367,13 +368,6 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Velocidad */}
-          <div className="card" style={{ padding: 20 }}>
-            <SpeedSlider
-              velocidad={velocidadRespuesta}
-              onChange={setVelocidadRespuesta}
-            />
-          </div>
 
           {/* Info evento */}
           <div
@@ -421,7 +415,7 @@ export default function Dashboard() {
                       color: "#059669",
                     }}
                   >
-                    <BarChart2 size={11} /> Grav. {ev.gravedad}%
+                    <BarChart2 size={11} /> {ev.nivelRiesgo}
                   </div>
                   <div
                     style={{
@@ -432,7 +426,7 @@ export default function Dashboard() {
                       color: "#059669",
                     }}
                   >
-                    <Clock size={11} /> Base {ev.tiempoRecuperacionBase}d
+                    <Clock size={11} /> Rec. {ev.tiempoRecuperacionResiliente}d
                   </div>
                 </div>
               </div>
@@ -575,7 +569,7 @@ export default function Dashboard() {
           </div>
 
           {/* KPIs */}
-          {metricas && <KPIGrid metricas={metricas} eventoActual={ev.nombre} />}
+          {metricas && <KPIGrid metricas={metricas} eventoActual={ev.nombre} nivelRiesgo={ev.nivelRiesgo} />}
 
           {/* Gráfico de curvas */}
           <div
@@ -682,13 +676,6 @@ export default function Dashboard() {
               />
             </div>
 
-            <div className="card" style={{ padding: 20 }}>
-              <SpeedSlider
-                velocidad={velocidadRespuesta}
-                onChange={setVelocidadRespuesta}
-              />
-            </div>
-
             {/* Info evento en drawer */}
             <div
               style={{
@@ -721,7 +708,7 @@ export default function Dashboard() {
                     {ev.nombre}
                   </div>
                   <div style={{ fontSize: 10, color: "#059669", marginTop: 3 }}>
-                    Gravedad {ev.gravedad}% · Base {ev.tiempoRecuperacionBase}d
+                    {ev.nivelRiesgo} · Rec. Resiliente {ev.tiempoRecuperacionResiliente}d
                   </div>
                 </div>
               </div>

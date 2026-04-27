@@ -234,9 +234,9 @@ export default function ResilienceBarChart({
   const datos: EventoMetrica[] = useMemo(() => {
     return EVENTOS.map((ev: EventoDisruptivo) => {
       const puntos = generarCurvasResiliencia(ev, velocidad);
-      const metrics = calcularMetricas(puntos);
-      const rigido = parseFloat(metrics.perdidaTotalRigido.toFixed(1));
-      const resiliente = parseFloat(metrics.perdidaTotalResiliente.toFixed(1));
+      const metrics = calcularMetricas(puntos, ev, velocidad);
+      const rigido = parseFloat(metrics.tiempoInactivo.toFixed(1));
+      const resiliente = parseFloat(metrics.tiempoInactivoResiliente.toFixed(1));
       return {
         id: ev.id,
         nombre: ev.nombre,
