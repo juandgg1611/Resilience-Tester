@@ -123,21 +123,51 @@ function LoadingScreen() {
 
 // ─── Dashboard ──────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [eventoSeleccionado, setEventoSeleccionado] =
-    useState<EventoDisruptivo>(EVENTOS[0]);
+  const [eventoBase, setEventoBase] = useState<EventoDisruptivo>(EVENTOS[0]);
+  const [eventoSeleccionado, setEventoSeleccionado] = useState<EventoDisruptivo>(EVENTOS[0]);
   const [velocidadRespuesta, setVelocidadRespuesta] = useState<number>(1);
   const [puntos, setPuntos] = useState<PuntoTiempo[]>([]);
   const [metricas, setMetricas] = useState<MetricasRecuperacion | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Aplicar variabilidad cuando se selecciona un evento
+  const handleSelectEvento = (evento: EventoDisruptivo) => {
+    setEventoBase(evento);
+    
+    // Variación aleatoria entre -4 y +5 días
+    const variacion = Math.floor(Math.random() * 10) - 4;
+    
+    let nuevoRigido = evento.tiempoRecuperacionRigido + variacion;
+    if (nuevoRigido < Math.max(3, evento.tiempoRecuperacionRigido * 0.4)) {
+      nuevoRigido = Math.floor(evento.tiempoRecuperacionRigido * 0.4); 
+    }
+
+    const proporcion = nuevoRigido / evento.tiempoRecuperacionRigido;
+    const nuevoResiliente = Math.max(1, Math.round(evento.tiempoRecuperacionResiliente * proporcion));
+
+    setEventoSeleccionado({
+      ...evento,
+      tiempoRecuperacionRigido: nuevoRigido,
+      tiempoRecuperacionResiliente: nuevoResiliente
+    });
+  };
+
+  // Inicializar variabilidad al cargar
   useEffect(() => {
+    handleSelectEvento(EVENTOS[0]);
+  }, []);
+
+  useEffect(() => {
+    // Generamos las curvas basándonos en el evento seleccionado (que ya tiene la variabilidad)
+    // y pasamos el evento base para poder escalar los datos originales del Excel.
     const nuevosPuntos = generarCurvasResiliencia(
       eventoSeleccionado,
       velocidadRespuesta,
+      eventoBase
     );
     setPuntos(nuevosPuntos);
     setMetricas(calcularMetricas(nuevosPuntos, eventoSeleccionado, velocidadRespuesta));
-  }, [eventoSeleccionado, velocidadRespuesta]);
+  }, [eventoSeleccionado, velocidadRespuesta, eventoBase]);
 
   if (puntos.length === 0) return <LoadingScreen />;
 
@@ -363,8 +393,8 @@ export default function Dashboard() {
             </div>
             <EventSelector
               eventos={EVENTOS}
-              seleccionado={eventoSeleccionado}
-              onChange={setEventoSeleccionado}
+              seleccionado={eventoBase}
+              onChange={handleSelectEvento}
             />
           </div>
 
@@ -668,9 +698,9 @@ export default function Dashboard() {
               </div>
               <EventSelector
                 eventos={EVENTOS}
-                seleccionado={eventoSeleccionado}
+                seleccionado={eventoBase}
                 onChange={(e) => {
-                  setEventoSeleccionado(e);
+                  handleSelectEvento(e);
                   setSidebarOpen(false);
                 }}
               />

@@ -17,20 +17,26 @@ import { CHART_DATA, METRICAS_BASE, interpolar } from "@/data/chartData";
 export const generarCurvasResiliencia = (
   evento: EventoDisruptivo,
   velocidadRespuesta: number = 1.0,
+  eventoBase?: EventoDisruptivo
 ): PuntoTiempo[] => {
   const datos = CHART_DATA[evento.id];
   if (!datos || datos.length === 0) return [];
 
   const maxDias = evento.tiempoRecuperacionRigido;
+  const baseRigido = eventoBase ? eventoBase.tiempoRecuperacionRigido : maxDias;
+  const escalaX = baseRigido / maxDias;
+
   const puntos: PuntoTiempo[] = [];
 
   for (let dia = 0; dia <= maxDias; dia++) {
-    // Sistema rígido: datos exactos del Excel
-    const rigido = interpolar(datos, dia, 1);
+    // Escalar el día actual para que coincida con la longitud de los datos originales del Excel
+    const xReal = dia * escalaX;
+    
+    // Sistema rígido: datos interpolados según la escala original
+    const rigido = interpolar(datos, xReal, 1);
 
-    // Sistema resiliente: mismos datos pero el eje X se escala por velocidadRespuesta
-    // Con velocidad 2x, el día 5 del resiliente equivale al día 10 del rigid → llega antes
-    const xResiliente = dia * velocidadRespuesta;
+    // Sistema resiliente: el eje X se escala por velocidadRespuesta
+    const xResiliente = xReal * velocidadRespuesta;
     const resiliente = Math.min(100, interpolar(datos, xResiliente, 2));
 
     puntos.push({
